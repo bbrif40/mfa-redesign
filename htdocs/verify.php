@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
         if (preg_match('/^[a-f0-9]{32}$/', $n)) go('recovery.php?t=' . $n);
     } elseif ($action === 'resend') {
-        $n = restart_email($t, !empty($r['replace_codes']));
+        $n = restart_email($t);
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
         if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
         if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);

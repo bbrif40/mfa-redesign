@@ -1,38 +1,34 @@
 # MFA redesign academic prototype
 
-A PHP demonstration of email number-matching verification with a sample institutional dashboard. The password field is illustrative and is not checked. Use dummy passwords only.
+A PHP demonstration of email number-matching verification and a permanent security code, with a fictional institutional dashboard. The password field is illustrative and is not checked. Use dummy passwords only.
 
 ## Setup
 
 1. Install PHP and copy `htdocs/config.example.php` to `htdocs/config.php`.
 2. Configure the site URL and email settings for your environment.
-3. Ensure `htdocs/data` is writable by PHP and is protected against web access. Its `.htaccess` provides this protection on Apache when overrides are enabled; other servers require equivalent rules.
+3. Ensure `htdocs/data` is writable by PHP and protected against web access. Its `.htaccess` supports Apache when overrides are enabled; other servers need equivalent rules.
 4. Serve `htdocs` as the document root.
 
-For local simulations, set `MFA_DEV=1`. The application saves the verification email to `htdocs/data/last_email.html` instead of sending it. Email links must point to the local site URL. View the saved HTML locally to select and confirm the matching number.
+For local simulation, set `MFA_DEV=1` and run `php -S 127.0.0.1:8080 -t htdocs router.php` from the project root. Match the configured site URL to your local port. The router protects runtime records and rejects missing files. **Open simulated email** on the verification screen lets you confirm the matching number without sending real email.
 
-Start the local server from the project root with `php -S 127.0.0.1:8080 -t htdocs router.php`. The router blocks direct access to runtime data and returns 404 for missing files instead of sending missing-icon requests to the login page. In demo mode, use **Open simulated email** on the verification screen.
+## Permanent security code
 
-## Repository layout
+After first email verification, generate one security code, save or print it, and confirm **I saved my security code**. The same code works for future sign-ins and does not run out. Only its hash is stored with the account; plaintext is shown temporarily during setup.
 
-- `htdocs/`: current PHP prototype and bundled PHPMailer source.
-- `htdocs/config.example.php`: configuration template without credentials.
-- `htdocs/data/`: runtime verification and rate-limit records, excluded from Git.
+The dashboard offers **Use security code in your next login** after either sign-in method. Selecting it skips the email send on future sign-ins. Users can still choose email verification or switch their preference back to email.
 
-The local configuration, runtime records, and portable preview installation are excluded from version control.
+Code changes require **Request security code change through helpdesk**. This prototype shows a simulated receipt popup only: it does not send a real request, approve sign-in, or change the code. Self-service replacement is disabled even after email verification.
 
-## Security-code simulation
+Switching verification methods cancels the pending email link. Invalid codes retain the current escalating account lockout. Account data and request updates use file locks.
 
-With `MFA_DEV=1`, open `demo.php`, prepare the fictional classroom account, and save its five security codes. Select **Start demo sign-in**, enter any dummy password, and check **Demo: simulate email sending failure**. Enter a saved code to reach the dashboard.
+Existing accounts from the five-code version keep their first remaining saved code as the permanent code. Other codes from that old set are retired.
 
-For first-time setup, sign in with another email address, open **Open simulated email** from the verification screen, and confirm the matching number. Generate five codes and confirm **I saved my codes** before continuing.
+## Classroom simulation
 
-Selecting **Use a security code** cancels the pending email link. Invalid or used security codes trigger the same account lockout as an incorrect email number. Lost-code options include email-verified replacement and a simulated helpdesk receipt popup; the popup does not send a real request or approve sign-in.
+With demo mode enabled, open `demo.php` to prepare a fictional account with one permanent security code. Preparation cannot regenerate an existing code. Save the displayed code, select **Start demo sign-in**, enter a dummy password, and check **Demo: simulate email sending failure** to try the backup flow. If security code is already the preferred method, login goes directly to code entry.
 
-Account changes and code consumption use file locks. Security codes are stored as hashes; plaintext codes are kept temporarily in the setup browser session for saving or printing.
-
-After signing in with either method, select **Use security code in your next login** on the dashboard to make security-code entry the preferred method. Subsequent sign-ins skip the email send when unused codes are available. Each code still works once; email remains available and is used automatically when the saved set is exhausted. The dashboard also lets you switch your preference back to email.
+Configuration credentials, runtime records, and the portable `.local-preview` installation are excluded from Git. `htdocs/config.example.php` contains a safe configuration template; `htdocs/PHPMailer` contains the bundled mail library.
 
 ## Verification
 
-Run `python tests/recovery_flow.py PATH_TO_PHP_EXECUTABLE`. The standard-library integration checks create isolated temporary data and cover setup, replacement, single use, concurrent submissions, lockouts, browser ownership, and demo-mode restrictions.
+Run `python tests/recovery_flow.py PATH_TO_PHP_EXECUTABLE`. Tests use isolated temporary data and cover setup, permanent reuse, concurrent logins, preferences, account protection, browser binding, helpdesk acknowledgements, blocked self-service changes, legacy migration, and demo-mode restrictions.

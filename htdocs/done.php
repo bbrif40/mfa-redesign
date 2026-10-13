@@ -1,8 +1,8 @@
 <?php require 'lib.php';
 $t = $_GET['t'] ?? ''; $r = request($t);
 if (!$r || !owns($r) || status($r) !== 'approved') go('index.php');
-$a = load(acct($r['email'])) ?? [];
-if (($r['method'] ?? 'email') === 'email' && ((empty($a['recovery_ready']) && empty($r['setup_done'])) || !empty($r['replace_codes']))) go('setup.php?t=' . $t);
+$a = security_account($r['email']); $receipt = false;
+if (($r['method'] ?? 'email') === 'email' && !has_recovery_codes($r['email']) && empty($r['setup_done'])) go('setup.php?t=' . $t);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     if (in_array($_POST['action'] ?? '', ['prefer_security', 'prefer_email'], true)) {
@@ -11,13 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result === 'invalid') go('index.php');
         go('done.php?t=' . $t . '&preference=' . $result);
     }
-    if (($_POST['action'] ?? '') === 'replace') {
-        $n = start_request($r['email'], false, true);
-        if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
-        if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
-        if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);
-        go('done.php?t=' . $t . '&mail_limit=1');
-    }
+    if (($_POST['action'] ?? '') === 'helpdesk') $receipt = true;
 }
 
 // Example data for the prototype dashboard (all fictional).
@@ -69,7 +63,7 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
   <header class="hello">
     <h1>Hello, <?= h($name) ?>!</h1>
     <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a security code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
-    <p><?= count($a['recovery_hashes'] ?? []) ?> security codes remaining.</p>
+    <p>Your security code is permanent and reusable. Changes require a helpdesk request.</p>
     <form method="post"><?= csrf_field() ?>
       <button type="submit" name="action" value="prefer_security" <?= has_recovery_codes($r['email']) ? '' : 'disabled' ?>>Use security code in your next login</button>
       <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
@@ -77,11 +71,14 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
       <?php endif; ?>
     </form>
     <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
-    <p role="status">Security code selected for your next login. Each code works once. Email verification is available if no unused codes remain.</p>
+    <p role="status">Security code selected for your next login. Use the same code each time. Email verification remains available.</p>
     <?php elseif (($_GET['preference'] ?? '') === 'saved'): ?><p role="status">Email verification selected for your next login.</p><?php endif; ?>
-    <?php if (($_GET['preference'] ?? '') === 'no_codes'): ?><p role="alert">No unused security codes remain. Verify by email to generate a new set.</p><?php endif; ?>
-    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="replace">Verify by email to replace security codes</button></form>
-    <?php if (isset($_GET['mail_limit'])): ?><p role="alert">Too many verification emails requested. Try again in an hour.</p><?php endif; ?>
+    <?php if (($_GET['preference'] ?? '') === 'no_codes'): ?><p role="alert">Complete security code setup before selecting it for your next login.</p><?php endif; ?>
+    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="helpdesk">Request security code change through helpdesk</button></form>
+    <?php if ($receipt): ?>
+    <p role="status">Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.</p>
+    <script>alert('Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.');</script>
+    <?php endif; ?>
   </header>
   <div class="tabs" role="tablist"><span class="tab on">Dashboard</span><span class="tab">Courses</span></div>
 

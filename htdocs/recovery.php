@@ -13,8 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($result === 'approved') go('done.php?t=' . $t);
         if ($result === 'locked') go('locked.php?e=' . urlencode($r['email']));
         $err = 'This verification request is no longer active. Start a new sign-in.';
-    } elseif ($action === 'email' || $action === 'replace') {
-        $n = restart_email($t, $action === 'replace');
+    } elseif ($action === 'email') {
+        $n = restart_email($t);
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
         if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
         if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 top('Security code verification'); ?>
   <h1>USE A SECURITY CODE</h1>
   <?php if (!empty($r['mail_failed'])): ?><p class="error" role="alert">We couldn't send your verification email. Use a saved security code or choose an option below.</p><?php endif; ?>
-  <p class="lead">Enter one of the security codes you saved for <?= h(mask($r['email'])) ?>. Each code works once.</p>
+  <p class="lead">Enter your permanent security code for <?= h(mask($r['email'])) ?>. The same code works for future sign-ins.</p>
   <?php if ($s === 'pending' && has_recovery_codes($r['email'])): ?>
   <form method="post" class="form">
     <?= csrf_field() ?>
@@ -40,13 +40,12 @@ top('Security code verification'); ?>
     <button class="btn btn-primary" name="action" value="code">Verify security code</button>
   </form>
   <?php elseif ($s !== 'pending'): ?><p class="error">This request expired or was cancelled. Start a new sign-in.</p>
-  <?php else: ?><p class="state">No saved security codes are available. Verify by email to set up or replace your codes.</p><?php endif; ?>
+  <?php else: ?><p class="state">Your security code is not set up. Verify by email to complete first-time setup.</p><?php endif; ?>
   <?php if ($err): ?><p class="error" role="alert"><?= h($err) ?></p><?php endif; ?>
-  <details class="next"><summary>Lost your security codes?</summary>
-    <p>If you can access email, verify by email to get a replacement set. Otherwise, request helpdesk recovery.</p>
+  <details class="next"><summary>Forgot your security code or need to change it?</summary>
+    <p>Security code changes require a helpdesk request. You can still sign in by email if your inbox is accessible.</p>
     <form method="post" class="actions"><?= csrf_field() ?>
-      <button class="btn" name="action" value="replace">Verify by email and replace codes</button>
-      <button class="btn" name="action" value="helpdesk">Request helpdesk recovery</button>
+      <button class="btn" name="action" value="helpdesk">Request security code change through helpdesk</button>
     </form>
   </details>
   <form method="post" class="actions"><?= csrf_field() ?>
@@ -54,7 +53,7 @@ top('Security code verification'); ?>
     <button class="btn" name="action" value="cancel">Cancel Login</button>
   </form>
   <?php if ($receipt): ?>
-  <p class="state" role="status">Simulation: the recovery desk has received your recovery request. This demo does not send a real request or approve sign-in.</p>
-  <script>alert('Simulation: the recovery desk has received your recovery request. This demo does not send a real request or approve sign-in.');</script>
+  <p class="state" role="status">Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.</p>
+  <script>alert('Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.');</script>
   <?php endif; ?>
 <?php bottom();

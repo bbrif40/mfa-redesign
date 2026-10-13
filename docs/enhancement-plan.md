@@ -2,78 +2,48 @@
 
 ## Agreed scope
 
-This project remains an academic prototype demonstrating verification usability and backup verification behavior. It is not intended for real institutional authentication.
+This remains an academic prototype. Keep the current visual design and add only the agreed verification and simulation flows. Implementation is on `codex/mfa-recovery-plan`.
 
-## Plan status
+## Verification methods
 
-The user approved implementation on `codex/mfa-recovery-plan`. The scope below is the agreed implementation plan.
+Email number matching remains the default. Users can also sign in with one permanent security code saved during first-time setup after successful email verification.
 
-Implementation includes the current visual design, security-code backup flows, and local classroom simulation.
-
-## Backup eligibility
-
-Backup verification is available when verification email delivery fails, the email does not arrive, or the user cannot access their inbox. A wrong number selection or an active security lockout must not automatically unlock backup verification or bypass account protection.
-
-## Backup method
-
-The backup method is single-use security codes saved by the user before primary verification becomes unavailable. Each successfully used code becomes invalid for future sign-ins.
+The security code is reusable: successful sign-ins never consume, expire, or rotate it. A sign-in request still expires after five minutes. Store only the code hash in account data; show plaintext temporarily during setup for saving or printing. Require "I saved my security code" before continuing to the dashboard.
 
 ## Next-login preference
 
-After successful email or security-code verification, the dashboard offers "Use security code in your next login". Selecting it saves an account preference: future sign-ins show security-code verification first without sending an email when unused codes are available. Users can choose email verification on that screen or select email as their preferred method from the dashboard.
+After signing in using either method, users can select "Use security code in your next login". The saved account preference starts security code verification without sending an email. Email remains available on the verification screen and can be selected as the preferred method from the dashboard. Accounts without a configured security code use email for initial setup.
 
-Codes remain single-use. Active account lockouts apply before choosing either method. If no unused codes remain, sign-in falls back to email verification. Changing the preference preserves the existing code set and does not change the current approved sign-in.
+## Backup and switching
 
-## Security-code preparation
+Security code verification is also available when email delivery fails, the email never arrives, or the inbox is inaccessible. Switching from email cancels its pending approval link. Returning to email creates a fresh request. Browser binding and account protection apply to both methods.
 
-After successful email verification, users are offered a security-code setup step where they can save or print their codes for future sign-ins.
+## Code changes and helpdesk simulation
 
-Each set contains five single-use security codes. The setup step asks users to confirm "I saved my codes" before continuing.
+Remove self-service replacement, including replacement after email verification. A configured code cannot be regenerated through setup or the classroom demo preparation page. Users request changes through "Request security code change through helpdesk", available on the dashboard and the security code screen.
 
-Setup is required after the first successful email verification for an account without a security-code set. Later sign-ins retain the remaining codes rather than automatically creating a new set. Replacing a set requires successful email verification and invalidates every code in the previous set.
+The helpdesk action displays a simulation acknowledgement that the request was received. It sends no real message, grants no sign-in approval, and does not change the code automatically. Actual helpdesk verification and rotation are outside the agreed popup-only simulation.
 
-A separate classroom demo setup provides prepared accounts and security codes so email-failure scenarios can be demonstrated immediately. Demo preparation must be clearly distinguished from the normal sign-in and recovery flow.
+## Existing accounts
 
-## Switching verification methods
-
-Switching to security codes cancels the pending email verification and invalidates its approval link. Returning to email verification requires a fresh request. Each sign-in has one active verification method.
-
-## Lost security codes
-
-Users are offered a "Lost your security codes?" option. If email is accessible, successful email verification allows generation of replacement security codes, invalidating the old set. If both email and saved codes are unavailable, users can request helpdesk recovery.
-
-Submitting a helpdesk recovery request displays a simulation alert stating that the recovery desk received the request. No actual request is sent, no reviewer screen or identity-check workflow is implemented, and the acknowledgement does not approve sign-in or issue replacement codes. The alert must clearly identify the interaction as a simulation.
-
-## Interface scope
-
-Keep the current visual design. Add only the interface elements needed for security-code setup, backup verification, lost-code options, and the simulated helpdesk acknowledgement. No general visual redesign or polish is requested.
+For accounts created under the earlier five-code prototype, retain the first remaining saved code as the permanent security code and retire the other hashes. Do not generate a new secret automatically. Accounts with no saved code complete first-time setup after email verification.
 
 ## Account protection
 
-Security-code verification follows the current account lockout behavior rather than introducing a separate three-error allowance. An invalid or already-used security code triggers the same immediate account lockout as a wrong email-number selection. Lockouts start at two minutes and increase by five minutes for repeated lockouts, capped at sixty minutes, using the existing escalation/reset rules. Active account lockouts block both verification methods; changing methods or restarting sign-in does not bypass them.
+An incorrect security code follows the current wrong-number rule: immediate lockout, starting at two minutes and increasing by five minutes for subsequent lockouts, capped at sixty minutes. Successful sign-ins keep the existing strike-reset behavior. Active lockouts block both methods and cannot be bypassed by restarting, changing preferences, or requesting helpdesk assistance.
 
 ## Classroom demonstration
 
-Provide a clearly labelled control, available only in demo mode, to simulate email sending failure and demonstrate backup verification with prepared demo accounts. A simulated delivery failure does not count as an incorrect verification attempt, matching current failed-send behavior.
+Demo mode provides a fictional prepared account with one reusable security code and a control to simulate email sending failure. Failed delivery does not count as an incorrect verification attempt. Demo controls are unavailable outside demo mode. A local PHP router protects runtime data and prevents missing-file requests from resetting sign-in state.
 
-## Implementation outline
+## Verification
 
-1. Add account-associated security-code storage without overwriting codes when existing strike/lockout functions update account data. Store code hashes; prevent successful reuse, including concurrent submissions.
-2. Add first-time code setup, save/print actions, acknowledgement, and email-verified replacement using the current visual design.
-3. Add security-code entry from email delivery errors and the waiting screen. Enforce browser ownership and account protection, and invalidate the pending email request when switching. A failed email send must still allow an eligible user to begin a bound backup verification request.
-4. Add lost-code choices and a clearly labelled simulated helpdesk receipt popup. The popup sends no external message and grants no access.
-5. Add isolated demo preparation and a demo-only email-failure control. Keep demo credentials and controls separate from the normal flow.
-6. Preserve the existing email verification and dashboard flow, adapting the success indicator to the method actually used.
-
-## Verification scenarios
-
-- Successful first email verification requires saving five security codes; later sign-ins preserve unused codes.
-- Delivery failure, missing email, and inaccessible inbox each allow a prepared user to use backup verification.
-- A correct security code approves its bound sign-in once; reuse and invalid codes follow the existing lockout.
-- Active lockouts apply to both methods, including after restarting or switching.
-- An email link cancelled by switching cannot approve the sign-in when it arrives late.
-- Returning to email creates a fresh verification request.
-- Email-verified replacement invalidates the entire previous code set.
-- Lost-code helpdesk requests show only a simulation acknowledgement and do not approve sign-in.
-- Demo failure controls are available only in demo mode; simulated delivery failure does not count as a wrong verification attempt.
-- Existing email number matching, expiry, cancellation, and successful dashboard access continue to work.
+- First-time setup generates exactly one hashed code and requires saving acknowledgement.
+- Repeated and concurrent valid sign-ins keep the same code hash.
+- Login preference works after either verification method.
+- Switching cancels delayed email approval and retains browser ownership checks.
+- Incorrect code entries keep the existing lockout and escalation.
+- Helpdesk receipt and old self-service replacement submissions cannot change codes.
+- Existing accounts retain their first remaining saved code.
+- Preparing a demo account again cannot rotate its configured code.
+- Demo controls remain restricted to demo mode.

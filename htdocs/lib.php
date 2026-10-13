@@ -96,24 +96,24 @@ function location($ip) {
 function mask($email) { [$u, $d] = explode('@', $email, 2); return substr($u, 0, 1) . '***@' . $d; }
 
 // ---- start a verification: returns token, or 'locked', 'iplimit', or 'mailfail' ----
-function start_request($email, $simulate_failure = false, $replace_codes = false) {
-    return account_lock($email, fn() => create_email_request($email, $simulate_failure, $replace_codes));
+function start_request($email, $simulate_failure = false) {
+    return account_lock($email, fn() => create_email_request($email, $simulate_failure));
 }
-function create_email_request($email, $simulate_failure, $replace_codes) {
+function create_email_request($email, $simulate_failure) {
     if (locked_until($email)) return 'locked';
     if (count(ip_hits()) >= 10) return 'iplimit'; // max 10 sign-in emails per hour from one network
     $site = strtolower((string)parse_url(SITE_URL, PHP_URL_HOST));
     $here = strtolower(preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? ''));
     if (!DEV_MODE && $site !== $here) { // wrong SITE_URL = email buttons that lead nowhere
         $GLOBALS['mail_error'] = "SITE_URL in config.php is " . SITE_URL . " but this site is at $here. Set SITE_URL to " . (https() ? 'https' : 'http') . "://$here";
-        return failed_email_request($email, $replace_codes);
+        return failed_email_request($email);
     }
     $choices = [];
     while (count($choices) < 9) $choices[sprintf('%02d', random_int(1, 99))] = 1;
     $choices = array_keys($choices);
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
     $r = [
-        'email' => $email, 'status' => 'pending', 'created' => time(), 'method' => 'email', 'replace_codes' => $replace_codes,
+        'email' => $email, 'status' => 'pending', 'created' => time(), 'method' => 'email',
         'num' => (string)$choices[random_int(0, 8)], 'choices' => array_map('strval', $choices),
         'key' => bin2hex(random_bytes(16)), // secret only the email has: seeing the screen isn't enough to approve
         'bind' => bin2hex(random_bytes(16)), // matches a cookie in the browser that started the login
@@ -121,7 +121,7 @@ function create_email_request($email, $simulate_failure, $replace_codes) {
     ];
     $t = bin2hex(random_bytes(16));
     if ((DEV_MODE && $simulate_failure) || !send_mail($r, $t)) {
-        return failed_email_request($email, $replace_codes); // failed sends do not count toward lockout
+        return failed_email_request($email); // failed sends do not count toward lockout
     }
     save('req_' . $t, $r);
     set_bind($r['bind']);

@@ -21,8 +21,21 @@ function check_csrf() {
     }
 }
 
+function security_account($email) {
+    return account_lock($email, function () use ($email) {
+        $a = load(acct($email)) ?? [];
+        // Existing prototypes used five single-use hashes. Retain the first
+        // remaining code as the permanent code without generating a new secret.
+        if (empty($a['security_permanent']) && !empty($a['recovery_hashes'])) {
+            $a['recovery_hashes'] = [array_values($a['recovery_hashes'])[0]];
+            $a['security_permanent'] = true;
+            save(acct($email), $a);
+        }
+        return $a;
+    });
+}
 function has_recovery_codes($email) {
-    $a = load(acct($email));
+    $a = security_account($email);
     return !empty($a['recovery_ready']) && !empty($a['recovery_hashes']);
 }
 function start_login_request($email, $simulate_failure = false) {
@@ -50,27 +63,25 @@ function save_login_preference($t, $method) {
     });
 }
 function generate_codes() {
-    $codes = [];
-    for ($i = 0; $i < 5; $i++) $codes[] = implode('-', str_split(strtoupper(bin2hex(random_bytes(10))), 4));
-    return $codes;
+    return [implode('-', str_split(strtoupper(bin2hex(random_bytes(10))), 4))];
 }
 function code_hash($code) {
     return hash('sha256', strtoupper(preg_replace('/[\s-]/', '', $code)));
 }
 
-function backup_request($email, $mail_failed = false, $replace_codes = false) {
+function backup_request($email, $mail_failed = false) {
     if (locked_until($email)) return 'locked';
     $t = bin2hex(random_bytes(16));
     $r = ['email' => $email, 'status' => 'pending', 'created' => time(),
         'method' => 'recovery', 'bind' => bin2hex(random_bytes(16)),
         'device' => device(), 'location' => location($_SERVER['REMOTE_ADDR'] ?? ''),
-        'time' => date('g:i A'), 'mail_failed' => $mail_failed, 'replace_codes' => $replace_codes];
+        'time' => date('g:i A'), 'mail_failed' => $mail_failed];
     save('req_' . $t, $r);
     set_bind($r['bind']);
     return $t;
 }
-function failed_email_request($email, $replace_codes) {
-    $t = backup_request($email, true, $replace_codes);
+function failed_email_request($email) {
+    $t = backup_request($email, true);
     if ($t !== 'locked') $GLOBALS['backup_token'] = $t;
     return $t === 'locked' ? 'locked' : 'mailfail';
 }
@@ -93,7 +104,7 @@ function verify_recovery_code($t, $code) {
         $r = request($t);
         $s = status($r);
         if ($s !== 'pending' || ($r['method'] ?? '') !== 'recovery') return $s === 'pending' ? 'invalid' : $s;
-        $a = load(acct($r['email'])) ?? [];
+        $a = security_account($r['email']);
         $hashes = $a['recovery_hashes'] ?? [];
         $match = array_search(code_hash($code), $hashes, true);
         if (empty($a['recovery_ready']) || $match === false) {
@@ -101,9 +112,6 @@ function verify_recovery_code($t, $code) {
             strike($r['email'], true);
             return 'locked';
         }
-        unset($hashes[$match]);
-        $a['recovery_hashes'] = array_values($hashes);
-        save(acct($r['email']), $a); // consume before approving; failure cannot allow reuse
         clear_strikes($r['email']);
         $r['status'] = 'approved'; $r['approved_at'] = time();
         save('req_' . $t, $r);
@@ -128,14 +136,14 @@ function confirm_email_number($t, $key, $number) {
     });
 }
 
-function restart_email($t, $replace_codes = false) {
+function restart_email($t) {
     $r = request($t);
     if (!$r || !owns($r)) return 'invalid';
-    return account_lock($r['email'], function () use ($t, $replace_codes) {
+    return account_lock($r['email'], function () use ($t) {
         $r = request($t);
         if (locked_until($r['email'])) return 'locked';
         if (!in_array(status($r), ['pending', 'expired'], true)) return 'invalid';
         $r['status'] = 'cancelled'; save('req_' . $t, $r);
-        return start_request($r['email'], false, $replace_codes);
+        return start_request($r['email']);
     });
 }
