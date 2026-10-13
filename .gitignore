@@ -1,0 +1,5 @@
+.local-preview/
+htdocs/config.php
+htdocs/data/*
+!htdocs/data/.htaccess
+!htdocs/data/.gitkeep
