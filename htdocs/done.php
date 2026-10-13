@@ -1,6 +1,18 @@
 <?php require 'lib.php';
-$r = request($_GET['t'] ?? '');
-if (!$r || !owns($r) || $r['status'] !== 'approved') go('index.php');
+$t = $_GET['t'] ?? ''; $r = request($t);
+if (!$r || !owns($r) || status($r) !== 'approved') go('index.php');
+$a = load(acct($r['email'])) ?? [];
+if (($r['method'] ?? 'email') === 'email' && ((empty($a['recovery_ready']) && empty($r['setup_done'])) || !empty($r['replace_codes']))) go('setup.php?t=' . $t);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
+    if (($_POST['action'] ?? '') === 'replace') {
+        $n = start_request($r['email'], false, true);
+        if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
+        if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
+        if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);
+        go('done.php?t=' . $t . '&mail_limit=1');
+    }
+}
 
 // Example data for the prototype dashboard (all fictional).
 $name = strtoupper(str_replace(['.', '_'], ' ', explode('@', $r['email'])[0]));
@@ -50,7 +62,10 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
 <div class="main">
   <header class="hello">
     <h1>Hello, <?= h($name) ?>!</h1>
-    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with number matching · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
+    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a recovery code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
+    <p><?= count($a['recovery_hashes'] ?? []) ?> recovery codes remaining.</p>
+    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="replace">Verify by email to replace recovery codes</button></form>
+    <?php if (isset($_GET['mail_limit'])): ?><p role="alert">Too many verification emails requested. Try again in an hour.</p><?php endif; ?>
   </header>
   <div class="tabs" role="tablist"><span class="tab on">Dashboard</span><span class="tab">Courses</span></div>
 

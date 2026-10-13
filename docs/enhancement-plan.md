@@ -6,9 +6,9 @@ This project remains an academic prototype demonstrating verification usability 
 
 ## Plan status
 
-The planning interview has established the scope below. Awaiting user confirmation before implementation.
+The user approved implementation on `codex/mfa-recovery-plan`. The scope below is the agreed implementation plan.
 
-Implementation begins after the interview establishes a shared understanding and the user confirms the plan.
+Implementation includes the current visual design, recovery-code backup flows, and local classroom simulation.
 
 ## Backup eligibility
 

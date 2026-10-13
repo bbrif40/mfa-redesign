@@ -1,12 +1,23 @@
 <?php require 'lib.php';
 $t = $_GET['t'] ?? ''; $r = request($t);
 if (!$r || !owns($r)) go('index.php');
+if (($r['method'] ?? 'email') === 'recovery') go('recovery.php?t=' . $t);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $r['status'] = 'cancelled'; save('req_' . $t, $r);
-    if (($_POST['action'] ?? '') === 'resend') { // a resend counts toward the rate limit
-        $n = start_request($r['email']);
+    check_csrf();
+    $action = $_POST['action'] ?? '';
+    if ($action === 'backup') {
+        $n = switch_to_backup($t);
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
-        if (strlen($n) === 32) go('verify.php?t=' . $n);
+        if (preg_match('/^[a-f0-9]{32}$/', $n)) go('recovery.php?t=' . $n);
+    } elseif ($action === 'resend') {
+        $n = restart_email($t, !empty($r['replace_codes']));
+        if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
+        if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
+        if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);
+    } elseif ($action === 'cancel') {
+        account_lock($r['email'], function () use ($t) {
+            $current = request($t); $current['status'] = 'cancelled'; save('req_' . $t, $current);
+        });
     }
     go('index.php');
 }
@@ -28,9 +39,15 @@ top('Verify your identity'); ?>
     <ul><li>Device: <?= h($r['device']) ?></li><li>Location: <?= h($r['location']) ?></li><li>Time: <?= h($r['time']) ?></li></ul>
   </div>
   <form method="post" class="actions">
+    <?= csrf_field() ?>
     <button class="btn" name="action" value="resend">Resend Number</button>
     <button class="btn" name="action" value="cancel">Cancel Login</button>
   </form>
+  <?php if (in_array($s, ['pending', 'expired'], true)): ?>
+  <p class="lead small">Email hasn't arrived or you can't access your inbox?</p>
+  <form method="post" class="actions"><?= csrf_field() ?><button class="btn" name="action" value="backup">Use a recovery code</button></form>
+  <?php endif; ?>
+  <?php if (DEV_MODE): ?><p class="lead small"><a href="demo-email.php?t=<?= h($t) ?>" target="_blank" rel="noopener">Open simulated email</a></p><?php endif; ?>
 <?php if ($s === 'pending'): ?>
 <script>
 // check every 3s whether the user picked a number in the email
