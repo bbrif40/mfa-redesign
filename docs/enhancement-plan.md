@@ -12,6 +12,8 @@ The security code is reusable: successful sign-ins never consume, expire, or rot
 
 ## Next-login preference
 
+First sign-in must complete email number matching before security-code verification becomes available. Record successful number matching on the account. Prepared demo codes, a stored preference, failed delivery, and direct backup submissions cannot bypass this requirement. Subsequent sign-ins may use the permanent security code.
+
 After signing in using either method, users can select "Use security code in your next login". The saved account preference starts security code verification without sending an email. Email can be selected as the preferred method from the dashboard. The security-code page has no email-verification action; it offers code entry, helpdesk assistance, and cancellation. Accounts without a configured security code use email for initial setup.
 
 ## Backup and switching

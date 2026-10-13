@@ -1,6 +1,7 @@
 <?php require 'lib.php';
 $t = $_GET['t'] ?? ''; $r = request($t);
 if (!$r || !owns($r) || ($r['method'] ?? '') !== 'recovery') go('index.php');
+if (!completed_number_matching($r['email'])) go('index.php?first_match=1');
 $s = status($r);
 if ($s === 'locked') go('locked.php?e=' . urlencode($r['email']));
 if ($s === 'approved') go('done.php?t=' . $t);

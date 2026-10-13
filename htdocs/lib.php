@@ -40,7 +40,7 @@ function strike($email, $force_lock = false) {
     return account_lock($email, fn() => record_strike($email, $force_lock));
 }
 function record_strike($email, $force_lock = false) { // caller holds the account lock
-    $a = load(acct($email)) ?? ['hits' => [], 'locked_until' => 0];
+    $a = (load(acct($email)) ?? []) + ['hits' => [], 'locked_until' => 0];
     if (($a['locked_until'] ?? 0) < time() - 86400) $a['locks'] = 0; // a quiet day resets the escalation
     $a['hits'] = array_values(array_filter($a['hits'], fn($t) => $t > time() - WINDOW_SECONDS));
     $a['hits'][] = time();

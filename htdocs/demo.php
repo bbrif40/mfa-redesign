@@ -26,6 +26,7 @@ top('Classroom demo setup'); ?>
   <h1>CLASSROOM DEMO SETUP</h1>
   <p class="lead">Demo only: prepare the fictional account <strong><?= h($email) ?></strong> with one permanent security code.</p>
   <p class="lead small">The code is reusable. It cannot be regenerated here. Changes require a helpdesk request.</p>
+  <p class="lead small">The first sign-in must complete email number matching before this code can be used.</p>
   <?php if ($err): ?><p class="error" role="alert"><?= h($err) ?></p><?php endif; ?>
   <?php if ($codes): ?>
     <?php include 'codes-panel.php'; ?>

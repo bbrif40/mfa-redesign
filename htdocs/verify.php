@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'resend') {
         $n = restart_email($t);
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
-        if ($n === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
+        if ($n === 'mailfail') go(!empty($GLOBALS['backup_token']) ? 'recovery.php?t=' . $GLOBALS['backup_token'] : 'index.php?first_match=1');
         if (preg_match('/^[a-f0-9]{32}$/', $n)) go('verify.php?t=' . $n);
     } elseif ($action === 'cancel') {
         account_lock($r['email'], function () use ($t) {
@@ -43,7 +43,7 @@ top('Verify your identity'); ?>
     <button class="btn" name="action" value="resend">Resend Number</button>
     <button class="btn" name="action" value="cancel">Cancel Login</button>
   </form>
-  <?php if (in_array($s, ['pending', 'expired'], true)): ?>
+  <?php if (in_array($s, ['pending', 'expired'], true) && completed_number_matching($r['email'])): ?>
   <p class="lead small">Email hasn't arrived or you can't access your inbox?</p>
   <form method="post" class="actions"><?= csrf_field() ?><button class="btn" name="action" value="backup">Use a security code</button></form>
   <?php endif; ?>

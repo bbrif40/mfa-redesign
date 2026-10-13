@@ -15,6 +15,8 @@ For local simulation, set `MFA_DEV=1` and run `php -S 127.0.0.1:8080 -t htdocs r
 
 After first email verification, generate one security code, save or print it, and confirm **I saved my security code**. The same code works for future sign-ins and does not run out. Only its hash is stored with the account; plaintext is shown temporarily during setup.
 
+Every account must first complete email number matching before security-code sign-in is enabled, including prepared demo accounts. A saved code or preference does not bypass this first step. If the first verification email cannot be sent, sign-in stays on the login form with an error instead of proceeding to code entry.
+
 The dashboard offers **Use security code in your next login** after either sign-in method. Selecting it skips the email send on future sign-ins. Users can switch their preference back to email from the dashboard. The security-code page offers code entry, helpdesk assistance, and cancellation; it has no email-verification action.
 
 Code changes require **Request security code change through helpdesk**. This prototype shows a simulated receipt popup only: it does not send a real request, approve sign-in, or change the code. Self-service replacement is disabled even after email verification.

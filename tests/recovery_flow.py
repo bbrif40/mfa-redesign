@@ -91,6 +91,7 @@ def main():
                         time.sleep(.1)
                 email = 'integration@example.test'
                 token = browser.login(email)
+                assert 'VERIFY YOUR IDENTITY' in browser.page and 'Use a security code' not in browser.page
                 for path, expected in [('favicon.ico', 404), ('data/last_email.html', 403)]:
                     try:
                         browser.get(path)
@@ -98,6 +99,8 @@ def main():
                     except urllib.error.HTTPError as error:
                         assert error.code == expected
                 browser.approve(token)
+                account_path = site / 'data' / ('acct_' + hashlib.sha1(email.encode()).hexdigest() + '.json')
+                assert json.loads(account_path.read_text())['email_verified'] is True
                 assert 'SET UP YOUR SECURITY CODE' in browser.page
                 setup_url = browser.url
                 browser.post(setup_url, action='generate')
@@ -201,10 +204,31 @@ def main():
                 assert len(demo_codes) == 1
                 demo.post('demo.php', csrf=demo_csrf)
                 assert re.findall(r'<code>([A-F0-9-]+)</code>', demo.page) == demo_codes
+                demo_email = 'classroom-demo@example.test'
+                demo_path = site / 'data' / ('acct_' + hashlib.sha1(demo_email.encode()).hexdigest() + '.json')
+                demo_account = json.loads(demo_path.read_text())
+                demo_account['preferred_verification'] = 'security_code'
+                demo_path.write_text(json.dumps(demo_account))
+                demo_token = demo.login(demo_email)
+                assert 'VERIFY YOUR IDENTITY' in demo.page and 'Use a security code' not in demo.page
+                assert 'email_verified' not in json.loads(demo_path.read_text())
+                demo.post(demo.url, action='backup')
+                assert 'LOG IN' in demo.page
+                demo.get('index.php')
+                demo.post('index.php', email=demo_email, password='dummy', simulate_failure='1')
+                assert 'Your first sign-in requires email number matching' in demo.page
+                demo_token = demo.login(demo_email)
+                demo.approve(demo_token)
+                assert 'Dashboard' in demo.page
+                demo.login(demo_email)
+                assert 'USE A SECURITY CODE' in demo.page
+                demo.post(demo.url, action='code', code=demo_codes[0])
+                assert 'Dashboard' in demo.page
+                print('PASS: first sign-in requires number matching even with a prepared code and preference; code login works afterward')
                 legacy_email = 'legacy@example.test'
                 legacy_path = site / 'data' / ('acct_' + hashlib.sha1(legacy_email.encode()).hexdigest() + '.json')
                 legacy_hashes = [hashlib.sha256(value.encode()).hexdigest() for value in ['FIRST', 'SECOND']]
-                legacy_path.write_text(json.dumps(dict(recovery_hashes=legacy_hashes, recovery_ready=True, preferred_verification='security_code')))
+                legacy_path.write_text(json.dumps(dict(recovery_hashes=legacy_hashes, recovery_ready=True, preferred_verification='security_code', email_verified=True)))
                 Browser(base).login(legacy_email)
                 assert json.loads(legacy_path.read_text())['recovery_hashes'] == legacy_hashes[:1]
                 print('PASS: demo preparation cannot replace existing code; legacy account keeps its first remaining code')

@@ -38,11 +38,14 @@ function has_recovery_codes($email) {
     $a = security_account($email);
     return !empty($a['recovery_ready']) && !empty($a['recovery_hashes']);
 }
+function completed_number_matching($email) {
+    return !empty((load(acct($email)) ?? [])['email_verified']);
+}
 function start_login_request($email, $simulate_failure = false) {
     return account_lock($email, function () use ($email, $simulate_failure) {
         if (locked_until($email)) return 'locked';
         $a = load(acct($email)) ?? [];
-        if (($a['preferred_verification'] ?? 'email') === 'security_code' && has_recovery_codes($email)) {
+        if (!empty($a['email_verified']) && ($a['preferred_verification'] ?? 'email') === 'security_code' && has_recovery_codes($email)) {
             return backup_request($email);
         }
         return start_request($email, $simulate_failure);
@@ -71,6 +74,7 @@ function code_hash($code) {
 
 function backup_request($email, $mail_failed = false) {
     if (locked_until($email)) return 'locked';
+    if (!completed_number_matching($email)) return 'email_required';
     $t = bin2hex(random_bytes(16));
     $r = ['email' => $email, 'status' => 'pending', 'created' => time(),
         'method' => 'recovery', 'bind' => bin2hex(random_bytes(16)),
@@ -81,6 +85,7 @@ function backup_request($email, $mail_failed = false) {
     return $t;
 }
 function failed_email_request($email) {
+    if (!completed_number_matching($email)) return 'mailfail';
     $t = backup_request($email, true);
     if ($t !== 'locked') $GLOBALS['backup_token'] = $t;
     return $t === 'locked' ? 'locked' : 'mailfail';
@@ -91,6 +96,7 @@ function switch_to_backup($t) {
     return account_lock($r['email'], function () use ($t) {
         $r = request($t);
         if (locked_until($r['email'])) return 'locked';
+        if (!completed_number_matching($r['email'])) return 'email_required';
         if (!in_array(status($r), ['pending', 'expired'], true) || ($r['method'] ?? 'email') !== 'email') return 'invalid';
         $r['status'] = 'cancelled';
         save('req_' . $t, $r);
@@ -104,6 +110,7 @@ function verify_recovery_code($t, $code) {
         $r = request($t);
         $s = status($r);
         if ($s !== 'pending' || ($r['method'] ?? '') !== 'recovery') return $s === 'pending' ? 'invalid' : $s;
+        if (!completed_number_matching($r['email'])) return 'email_required';
         $a = security_account($r['email']);
         $hashes = $a['recovery_hashes'] ?? [];
         $match = array_search(code_hash($code), $hashes, true);
@@ -130,6 +137,9 @@ function confirm_email_number($t, $key, $number) {
         if ($s !== 'pending') return $s;
         if (hash_equals($r['num'], $number)) {
             $r['status'] = 'approved'; $r['approved_at'] = time(); clear_strikes($r['email']);
+            $a = load(acct($r['email'])) ?? [];
+            $a['email_verified'] = true;
+            save(acct($r['email']), $a);
         } else { $r['status'] = 'wrong'; strike($r['email'], true); }
         save('req_' . $t, $r);
         return $r['status'];

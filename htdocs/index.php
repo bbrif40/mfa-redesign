@@ -1,5 +1,5 @@
 <?php require 'lib.php';
-$err = '';
+$err = isset($_GET['first_match']) ? 'Your first sign-in must complete email number matching. Please sign in to receive your number-matching email.' : '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $email = trim($_POST['email'] ?? '');
@@ -9,7 +9,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $t = start_login_request($email, DEV_MODE && isset($_POST['simulate_failure']));
         if ($t === 'locked') go('locked.php?e=' . urlencode($email));
         if ($t === 'iplimit') $err = 'Too many sign-in emails were requested from your network. Try again in an hour.';
-        elseif ($t === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
+        elseif ($t === 'mailfail') {
+            if (!empty($GLOBALS['backup_token'])) go('recovery.php?t=' . $GLOBALS['backup_token']);
+            $err = "We couldn't send your verification email. Your first sign-in requires email number matching. Please try again.";
+        }
         else {
             $r = request($t);
             go(($r['method'] === 'recovery' ? 'recovery.php' : 'verify.php') . '?t=' . $t);
