@@ -1,5 +1,7 @@
 <?php require 'lib.php';
 if (!DEV_MODE) { http_response_code(404); exit('Not found'); }
+$signedIn = request($_SESSION['signed_in_request'] ?? '');
+if (!$signedIn || !owns($signedIn) || status($signedIn) !== 'approved') go('index.php');
 $email = 'classroom-demo@example.test'; $err = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();

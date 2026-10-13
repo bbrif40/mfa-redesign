@@ -196,7 +196,14 @@ def main():
                 assert json.loads(account_path.read_text())['recovery_hashes'] == original_hashes
                 print('PASS: browser ownership retained; concurrent valid logins do not consume or rotate the permanent code')
 
-                demo = Browser(base)
+                outsider = Browser(base)
+                outsider.get('index.php')
+                assert 'Prepare a classroom demo account' not in outsider.page
+                outsider.get('demo.php')
+                assert 'LOG IN' in outsider.page and 'CLASSROOM DEMO SETUP' not in outsider.page
+                outsider.post('demo.php')
+                assert 'LOG IN' in outsider.page
+                demo = browser
                 demo.get('demo.php')
                 demo_csrf = re.search(r'name="csrf" value="([a-f0-9]+)"', demo.page).group(1)
                 demo.post('demo.php')
@@ -232,6 +239,10 @@ def main():
                 Browser(base).login(legacy_email)
                 assert json.loads(legacy_path.read_text())['recovery_hashes'] == legacy_hashes[:1]
                 print('PASS: demo preparation cannot replace existing code; legacy account keeps its first remaining code')
+                demo.get('index.php')
+                demo.get('demo.php')
+                assert 'LOG IN' in demo.page
+                print('PASS: classroom demo setup is available only to signed-in users; login page, direct anonymous access, and logout cannot access it')
 
                 production_environment = dict(environment, MFA_DEV='0')
                 login_html = subprocess.check_output([php, '-r', "$_SERVER['REQUEST_METHOD']='GET'; include 'index.php';"], cwd=site, env=production_environment, text=True)

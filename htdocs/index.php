@@ -33,5 +33,4 @@ top('Log in'); ?>
     <button class="btn btn-primary" type="submit">Log In</button>
     <?php if (DEV_MODE): ?><label><input type="checkbox" name="simulate_failure" value="1"> Demo: simulate email sending failure</label><?php endif; ?>
   </form>
-  <?php if (DEV_MODE): ?><p class="lead small"><a href="demo.php">Prepare a classroom demo account</a></p><?php endif; ?>
 <?php bottom();

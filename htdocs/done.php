@@ -14,6 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (($_POST['action'] ?? '') === 'helpdesk') $receipt = true;
 }
 
+$_SESSION['signed_in_request'] = $t;
+
 // Example data for the prototype dashboard (all fictional).
 $name = strtoupper(str_replace(['.', '_'], ' ', explode('@', $r['email'])[0]));
 $work = [
@@ -64,6 +66,7 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
     <h1>Hello, <?= h($name) ?>!</h1>
     <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a security code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
     <p>Your security code is permanent and reusable. Changes require a helpdesk request.</p>
+    <?php if (DEV_MODE): ?><p><a href="demo.php">Prepare a classroom demo account</a></p><?php endif; ?>
     <form method="post"><?= csrf_field() ?>
       <button type="submit" name="action" value="prefer_security" <?= has_recovery_codes($r['email']) ? '' : 'disabled' ?>>Use security code in your next login</button>
       <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>

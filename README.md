@@ -27,7 +27,7 @@ Existing accounts from the five-code version keep their first remaining saved co
 
 ## Classroom simulation
 
-With demo mode enabled, open `demo.php` to prepare a fictional account with one permanent security code. Preparation cannot regenerate an existing code. Save the displayed code, select **Start demo sign-in**, enter a dummy password, and check **Demo: simulate email sending failure** to try the backup flow. If security code is already the preferred method, login goes directly to code entry.
+With demo mode enabled, sign in and open **Prepare a classroom demo account** from the dashboard to prepare a fictional account with one permanent security code. This page requires an active approved sign-in and is not accessible from the login page or anonymously. Preparation cannot regenerate an existing code. Save the displayed code and select **Start demo sign-in**. The demo account must complete number matching on its first sign-in; later sign-ins can use its permanent code.
 
 Configuration credentials, runtime records, and the portable `.local-preview` installation are excluded from Git. `htdocs/config.example.php` contains a safe configuration template; `htdocs/PHPMailer` contains the bundled mail library.
 

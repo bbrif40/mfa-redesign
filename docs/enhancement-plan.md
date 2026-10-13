@@ -38,6 +38,8 @@ An incorrect security code follows the current wrong-number rule: immediate lock
 
 Demo mode provides a fictional prepared account with one reusable security code and a control to simulate email sending failure. Failed delivery does not count as an incorrect verification attempt. Demo controls are unavailable outside demo mode. A local PHP router protects runtime data and prevents missing-file requests from resetting sign-in state.
 
+The classroom demo preparation page requires an active approved sign-in. Its link is shown only on the signed-in dashboard, never on the login page. Direct anonymous requests and requests after logout redirect to login.
+
 ## Verification
 
 - First-time setup generates exactly one hashed code and requires saving acknowledgement.
