@@ -12,11 +12,11 @@ The security code is reusable: successful sign-ins never consume, expire, or rot
 
 ## Next-login preference
 
-After signing in using either method, users can select "Use security code in your next login". The saved account preference starts security code verification without sending an email. Email remains available on the verification screen and can be selected as the preferred method from the dashboard. Accounts without a configured security code use email for initial setup.
+After signing in using either method, users can select "Use security code in your next login". The saved account preference starts security code verification without sending an email. Email can be selected as the preferred method from the dashboard. The security-code page has no email-verification action; it offers code entry, helpdesk assistance, and cancellation. Accounts without a configured security code use email for initial setup.
 
 ## Backup and switching
 
-Security code verification is also available when email delivery fails, the email never arrives, or the inbox is inaccessible. Switching from email cancels its pending approval link. Returning to email creates a fresh request. Browser binding and account protection apply to both methods.
+Security code verification is also available when email delivery fails, the email never arrives, or the inbox is inaccessible. Switching from email cancels its pending approval link. Browser binding and account protection apply to both methods. Email requests can still be resent from the email-verification page.
 
 ## Code changes and helpdesk simulation
 

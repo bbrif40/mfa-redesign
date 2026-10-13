@@ -137,6 +137,12 @@ def main():
                 browser.get('verify.php?t=' + token)
                 browser.post(browser.url, action='backup')
                 backup_url = browser.url
+                assert 'Try email verification' not in browser.page
+                assert 'value="email"' not in browser.page
+                browser.post(backup_url, action='email')
+                assert browser.url == backup_url and 'USE A SECURITY CODE' in browser.page
+                backup_token = urllib.parse.parse_qs(urllib.parse.urlparse(backup_url).query)['t'][0]
+                assert json.loads((site / 'data' / ('req_' + backup_token + '.json')).read_text())['status'] == 'pending'
                 browser.get(old_link)
                 assert 'LINK NO LONGER ACTIVE' in browser.page
                 browser.get(backup_url)
