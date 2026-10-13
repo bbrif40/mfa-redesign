@@ -28,21 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         go('index.php');
     }
 }
-top('Backup verification'); ?>
-  <h1>USE A RECOVERY CODE</h1>
-  <?php if (!empty($r['mail_failed'])): ?><p class="error" role="alert">We couldn't send your verification email. Use a saved recovery code or choose an option below.</p><?php endif; ?>
-  <p class="lead">Enter one of the recovery codes you saved for <?= h(mask($r['email'])) ?>. Each code works once.</p>
+top('Security code verification'); ?>
+  <h1>USE A SECURITY CODE</h1>
+  <?php if (!empty($r['mail_failed'])): ?><p class="error" role="alert">We couldn't send your verification email. Use a saved security code or choose an option below.</p><?php endif; ?>
+  <p class="lead">Enter one of the security codes you saved for <?= h(mask($r['email'])) ?>. Each code works once.</p>
   <?php if ($s === 'pending' && has_recovery_codes($r['email'])): ?>
   <form method="post" class="form">
     <?= csrf_field() ?>
-    <label for="code">Recovery code</label>
+    <label for="code">Security code</label>
     <input id="code" name="code" autocomplete="off" spellcheck="false" required maxlength="64">
-    <button class="btn btn-primary" name="action" value="code">Verify recovery code</button>
+    <button class="btn btn-primary" name="action" value="code">Verify security code</button>
   </form>
   <?php elseif ($s !== 'pending'): ?><p class="error">This request expired or was cancelled. Start a new sign-in.</p>
-  <?php else: ?><p class="state">No saved recovery codes are available. Verify by email to set up or replace your codes.</p><?php endif; ?>
+  <?php else: ?><p class="state">No saved security codes are available. Verify by email to set up or replace your codes.</p><?php endif; ?>
   <?php if ($err): ?><p class="error" role="alert"><?= h($err) ?></p><?php endif; ?>
-  <details class="next"><summary>Lost your recovery codes?</summary>
+  <details class="next"><summary>Lost your security codes?</summary>
     <p>If you can access email, verify by email to get a replacement set. Otherwise, request helpdesk recovery.</p>
     <form method="post" class="actions"><?= csrf_field() ?>
       <button class="btn" name="action" value="replace">Verify by email and replace codes</button>

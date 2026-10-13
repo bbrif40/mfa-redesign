@@ -21,15 +21,17 @@ Start the local server from the project root with `php -S 127.0.0.1:8080 -t htdo
 
 The local configuration, runtime records, and portable preview installation are excluded from version control.
 
-## Recovery-code simulation
+## Security-code simulation
 
-With `MFA_DEV=1`, open `demo.php`, prepare the fictional classroom account, and save its five recovery codes. Select **Start demo sign-in**, enter any dummy password, and check **Demo: simulate email sending failure**. Enter a saved code to reach the dashboard.
+With `MFA_DEV=1`, open `demo.php`, prepare the fictional classroom account, and save its five security codes. Select **Start demo sign-in**, enter any dummy password, and check **Demo: simulate email sending failure**. Enter a saved code to reach the dashboard.
 
 For first-time setup, sign in with another email address, open **Open simulated email** from the verification screen, and confirm the matching number. Generate five codes and confirm **I saved my codes** before continuing.
 
-Selecting **Use a recovery code** cancels the pending email link. Invalid or used recovery codes trigger the same account lockout as an incorrect email number. Lost-code options include email-verified replacement and a simulated helpdesk receipt popup; the popup does not send a real request or approve sign-in.
+Selecting **Use a security code** cancels the pending email link. Invalid or used security codes trigger the same account lockout as an incorrect email number. Lost-code options include email-verified replacement and a simulated helpdesk receipt popup; the popup does not send a real request or approve sign-in.
 
-Account changes and code consumption use file locks. Recovery codes are stored as hashes; plaintext codes are kept temporarily in the setup browser session for saving or printing.
+Account changes and code consumption use file locks. Security codes are stored as hashes; plaintext codes are kept temporarily in the setup browser session for saving or printing.
+
+After signing in with either method, select **Use security code in your next login** on the dashboard to make security-code entry the preferred method. Subsequent sign-ins skip the email send when unused codes are available. Each code still works once; email remains available and is used automatically when the saved set is exhausted. The dashboard also lets you switch your preference back to email.
 
 ## Verification
 

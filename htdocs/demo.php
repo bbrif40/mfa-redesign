@@ -21,7 +21,7 @@ $codes = $demoCodes && hash_equals($a['recovery_version'] ?? '', $demoCodes['ver
 $r = ['email' => $email];
 top('Classroom demo setup'); ?>
   <h1>CLASSROOM DEMO SETUP</h1>
-  <p class="lead">Demo only: prepare the fictional account <strong><?= h($email) ?></strong> with five saved recovery codes.</p>
+  <p class="lead">Demo only: prepare the fictional account <strong><?= h($email) ?></strong> with five saved security codes.</p>
   <p class="lead small">Preparing again replaces this demo account's old codes. Existing lockouts still apply.</p>
   <?php if ($err): ?><p class="error" role="alert"><?= h($err) ?></p><?php endif; ?>
   <?php if ($codes): ?>

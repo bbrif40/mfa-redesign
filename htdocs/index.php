@@ -6,11 +6,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // The password is never read or stored: this prototype tests the second factor only.
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $err = 'Enter the email address linked to your account.';
     else {
-        $t = start_request($email, DEV_MODE && isset($_POST['simulate_failure']));
+        $t = start_login_request($email, DEV_MODE && isset($_POST['simulate_failure']));
         if ($t === 'locked') go('locked.php?e=' . urlencode($email));
         if ($t === 'iplimit') $err = 'Too many sign-in emails were requested from your network. Try again in an hour.';
         elseif ($t === 'mailfail') go('recovery.php?t=' . $GLOBALS['backup_token']);
-        else go('verify.php?t=' . $t);
+        else {
+            $r = request($t);
+            go(($r['method'] === 'recovery' ? 'recovery.php' : 'verify.php') . '?t=' . $t);
+        }
     }
 }
 else set_bind(''); // opening the login page signs out

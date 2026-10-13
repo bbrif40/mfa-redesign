@@ -5,6 +5,12 @@ $a = load(acct($r['email'])) ?? [];
 if (($r['method'] ?? 'email') === 'email' && ((empty($a['recovery_ready']) && empty($r['setup_done'])) || !empty($r['replace_codes']))) go('setup.php?t=' . $t);
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+    if (in_array($_POST['action'] ?? '', ['prefer_security', 'prefer_email'], true)) {
+        $result = save_login_preference($t, $_POST['action'] === 'prefer_security' ? 'security_code' : 'email');
+        if ($result === 'locked') go('locked.php?e=' . urlencode($r['email']));
+        if ($result === 'invalid') go('index.php');
+        go('done.php?t=' . $t . '&preference=' . $result);
+    }
     if (($_POST['action'] ?? '') === 'replace') {
         $n = start_request($r['email'], false, true);
         if ($n === 'locked') go('locked.php?e=' . urlencode($r['email']));
@@ -62,9 +68,19 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
 <div class="main">
   <header class="hello">
     <h1>Hello, <?= h($name) ?>!</h1>
-    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a recovery code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
-    <p><?= count($a['recovery_hashes'] ?? []) ?> recovery codes remaining.</p>
-    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="replace">Verify by email to replace recovery codes</button></form>
+    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a security code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
+    <p><?= count($a['recovery_hashes'] ?? []) ?> security codes remaining.</p>
+    <form method="post"><?= csrf_field() ?>
+      <button type="submit" name="action" value="prefer_security" <?= has_recovery_codes($r['email']) ? '' : 'disabled' ?>>Use security code in your next login</button>
+      <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
+      <button type="submit" name="action" value="prefer_email">Use email verification in your next login</button>
+      <?php endif; ?>
+    </form>
+    <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
+    <p role="status">Security code selected for your next login. Each code works once. Email verification is available if no unused codes remain.</p>
+    <?php elseif (($_GET['preference'] ?? '') === 'saved'): ?><p role="status">Email verification selected for your next login.</p><?php endif; ?>
+    <?php if (($_GET['preference'] ?? '') === 'no_codes'): ?><p role="alert">No unused security codes remain. Verify by email to generate a new set.</p><?php endif; ?>
+    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="replace">Verify by email to replace security codes</button></form>
     <?php if (isset($_GET['mail_limit'])): ?><p role="alert">Too many verification emails requested. Try again in an hour.</p><?php endif; ?>
   </header>
   <div class="tabs" role="tablist"><span class="tab on">Dashboard</span><span class="tab">Courses</span></div>

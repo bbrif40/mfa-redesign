@@ -37,10 +37,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $account = load(acct($r['email'])) ?? [];
 $setup = $_SESSION['setup'][$t] ?? null;
 $codes = $setup && hash_equals($account['recovery_version'] ?? '', $setup['version']) ? $setup['codes'] : [];
-top('Set up recovery codes'); ?>
-  <h1>SET UP RECOVERY CODES</h1>
+top('Set up security codes'); ?>
+  <h1>SET UP SECURITY CODES</h1>
   <p class="lead">Save five single-use codes for <?= h(mask($r['email'])) ?>. Use them if email verification is unavailable.</p>
-  <?php if (!empty($r['replace_codes'])): ?><p class="error">Generating a replacement set invalidates all your previous recovery codes.</p><?php endif; ?>
+  <?php if (!empty($r['replace_codes'])): ?><p class="error">Generating a replacement set invalidates all your previous security codes.</p><?php endif; ?>
   <?php if ($codes): ?>
     <?php include 'codes-panel.php'; ?>
     <form method="post" class="form"><?= csrf_field() ?>
@@ -48,7 +48,7 @@ top('Set up recovery codes'); ?>
       <button class="btn btn-primary" name="action" value="acknowledge">Continue to dashboard</button>
     </form>
   <?php else: ?>
-    <form method="post" class="actions"><?= csrf_field() ?><button class="btn btn-primary" name="action" value="generate">Generate five recovery codes</button></form>
+    <form method="post" class="actions"><?= csrf_field() ?><button class="btn btn-primary" name="action" value="generate">Generate five security codes</button></form>
   <?php endif; ?>
   <?php if ($err): ?><p class="error" role="alert"><?= h($err) ?></p><?php endif; ?>
 <?php bottom();

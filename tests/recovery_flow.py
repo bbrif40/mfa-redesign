@@ -102,16 +102,16 @@ def main():
                 except urllib.error.HTTPError as error:
                     assert error.code == 403
                 browser.approve(token)
-                assert 'SET UP RECOVERY CODES' in browser.page and 'Dashboard' not in browser.page
+                assert 'SET UP SECURITY CODES' in browser.page and 'Dashboard' not in browser.page
                 browser.post(browser.url, action='generate')
                 codes = re.findall(r'<code>([A-F0-9-]+)</code>', browser.page)
                 assert len(codes) == 5 and len(set(codes)) == 5
                 account_path = site / 'data' / ('acct_' + hashlib.sha1(email.encode()).hexdigest() + '.json')
                 assert all(code not in account_path.read_text() for code in codes)
                 browser.post(browser.url, action='acknowledge')
-                assert 'SET UP RECOVERY CODES' in browser.page
+                assert 'SET UP SECURITY CODES' in browser.page
                 browser.post(browser.url, action='acknowledge', saved='1')
-                assert 'Dashboard' in browser.page and '5 recovery codes remaining' in browser.page
+                assert 'Dashboard' in browser.page and '5 security codes remaining' in browser.page
                 print('PASS: first-time setup, five hashed codes, mandatory saved acknowledgement')
 
                 token = browser.login(email)
@@ -123,7 +123,7 @@ def main():
                 assert 'LINK NO LONGER ACTIVE' in browser.page
                 browser.get(backup_url)
                 browser.post(backup_url, action='code', code=codes[0].lower().replace('-', ' '))
-                assert 'Signed in with a recovery code' in browser.page and '4 recovery codes remaining' in browser.page
+                assert 'Signed in with a security code' in browser.page and '4 security codes remaining' in browser.page
                 print('PASS: switch cancels delayed email link; one code is consumed and dashboard shows method')
 
                 token = browser.login(email, failure=True)
@@ -160,16 +160,16 @@ def main():
                 new_token = urllib.parse.parse_qs(urllib.parse.urlparse(browser.url).query)['t'][0]
                 assert new_token != token
                 browser.approve(new_token)
-                assert 'SET UP RECOVERY CODES' in browser.page
+                assert 'SET UP SECURITY CODES' in browser.page
                 browser.post(browser.url, action='generate')
                 new_codes = re.findall(r'<code>([A-F0-9-]+)</code>', browser.page)
                 browser.post(browser.url, action='acknowledge', saved='1')
-                assert '5 recovery codes remaining' in browser.page
+                assert '5 security codes remaining' in browser.page
                 old_hashes = {hashlib.sha256(code.replace('-', '').encode()).hexdigest() for code in codes}
                 assert not old_hashes.intersection(json.loads(account_path.read_text())['recovery_hashes'])
                 token = browser.login(email)
                 browser.approve(token)
-                assert 'Dashboard' in browser.page and 'SET UP RECOVERY CODES' not in browser.page
+                assert 'Dashboard' in browser.page and 'SET UP SECURITY CODES' not in browser.page
                 print('PASS: fresh email replacement revokes old set; later email sign-in retains codes')
 
                 first = Browser(base)
@@ -193,6 +193,43 @@ def main():
                 demo.post('demo.php')
                 assert len(re.findall(r'<code>([A-F0-9-]+)</code>', demo.page)) == 5
                 print('PASS: prepared fictional classroom demo account')
+                preference_browser = Browser(base)
+                preference_email = 'preference@example.test'
+                preference_token = preference_browser.login(preference_email)
+                preference_browser.approve(preference_token)
+                preference_browser.post(preference_browser.url, action='generate')
+                preference_codes = re.findall(r'<code>([A-F0-9-]+)</code>', preference_browser.page)
+                preference_browser.post(preference_browser.url, action='acknowledge', saved='1')
+                assert 'Use security code in your next login' in preference_browser.page
+                preference_browser.post(preference_browser.url, action='prefer_security')
+                assert 'Security code selected for your next login' in preference_browser.page
+                preference_path = site / 'data' / ('acct_' + hashlib.sha1(preference_email.encode()).hexdigest() + '.json')
+                assert json.loads(preference_path.read_text())['preferred_verification'] == 'security_code'
+                email_before = (site / 'data' / 'last_email.html').read_text()
+                preference_token = preference_browser.login(preference_email)
+                assert 'USE A SECURITY CODE' in preference_browser.page
+                assert (site / 'data' / 'last_email.html').read_text() == email_before
+                preference_browser.post(preference_browser.url, action='code', code=preference_codes[0])
+                assert 'Signed in with a security code' in preference_browser.page
+                assert '4 security codes remaining' in preference_browser.page
+                preference_browser.post(preference_browser.url, action='prefer_email')
+                preference_token = preference_browser.login(preference_email)
+                assert 'VERIFY YOUR IDENTITY' in preference_browser.page
+                preference_browser.approve(preference_token)
+                assert '4 security codes remaining' in preference_browser.page
+                preference_browser.post(preference_browser.url, action='prefer_security')
+                preference_account = json.loads(preference_path.read_text())
+                preference_account['locked_until'] = int(time.time()) + 120
+                preference_path.write_text(json.dumps(preference_account))
+                preference_browser.get('index.php')
+                preference_browser.post('index.php', email=preference_email, password='dummy')
+                assert 'ACCOUNT PROTECTION LOCKED' in preference_browser.page
+                preference_account['locked_until'] = 0
+                preference_account['recovery_hashes'] = []
+                preference_path.write_text(json.dumps(preference_account))
+                preference_browser.login(preference_email)
+                assert 'VERIFY YOUR IDENTITY' in preference_browser.page
+                print('PASS: either sign-in supports security-code preference; next login skips email, supports email choice, enforces lockout, and falls back when exhausted')
                 production_environment = dict(environment, MFA_DEV='0')
                 login_html = subprocess.check_output([php, '-r', "$_SERVER['REQUEST_METHOD']='GET'; include 'index.php';"], cwd=site, env=production_environment, text=True)
                 assert 'simulate_failure' not in login_html and 'demo.php' not in login_html

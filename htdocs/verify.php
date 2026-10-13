@@ -45,7 +45,7 @@ top('Verify your identity'); ?>
   </form>
   <?php if (in_array($s, ['pending', 'expired'], true)): ?>
   <p class="lead small">Email hasn't arrived or you can't access your inbox?</p>
-  <form method="post" class="actions"><?= csrf_field() ?><button class="btn" name="action" value="backup">Use a recovery code</button></form>
+  <form method="post" class="actions"><?= csrf_field() ?><button class="btn" name="action" value="backup">Use a security code</button></form>
   <?php endif; ?>
   <?php if (DEV_MODE): ?><p class="lead small"><a href="demo-email.php?t=<?= h($t) ?>" target="_blank" rel="noopener">Open simulated email</a></p><?php endif; ?>
 <?php if ($s === 'pending'): ?>

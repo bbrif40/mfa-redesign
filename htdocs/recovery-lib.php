@@ -25,6 +25,30 @@ function has_recovery_codes($email) {
     $a = load(acct($email));
     return !empty($a['recovery_ready']) && !empty($a['recovery_hashes']);
 }
+function start_login_request($email, $simulate_failure = false) {
+    return account_lock($email, function () use ($email, $simulate_failure) {
+        if (locked_until($email)) return 'locked';
+        $a = load(acct($email)) ?? [];
+        if (($a['preferred_verification'] ?? 'email') === 'security_code' && has_recovery_codes($email)) {
+            return backup_request($email);
+        }
+        return start_request($email, $simulate_failure);
+    });
+}
+function save_login_preference($t, $method) {
+    $r = request($t);
+    if (!$r || !owns($r) || !in_array($method, ['email', 'security_code'], true)) return 'invalid';
+    return account_lock($r['email'], function () use ($t, $method) {
+        $r = request($t);
+        if (status($r) === 'locked') return 'locked';
+        if (status($r) !== 'approved') return 'invalid';
+        if ($method === 'security_code' && !has_recovery_codes($r['email'])) return 'no_codes';
+        $a = load(acct($r['email'])) ?? [];
+        $a['preferred_verification'] = $method;
+        save(acct($r['email']), $a);
+        return 'saved';
+    });
+}
 function generate_codes() {
     $codes = [];
     for ($i = 0; $i < 5; $i++) $codes[] = implode('-', str_split(strtoupper(bin2hex(random_bytes(10))), 4));
