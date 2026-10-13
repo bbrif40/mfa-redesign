@@ -26,6 +26,8 @@ Remove self-service replacement, including replacement after email verification.
 
 The helpdesk action displays a simulation acknowledgement that the request was received. It sends no real message, grants no sign-in approval, and does not change the code automatically. Actual helpdesk verification and rotation are outside the agreed popup-only simulation.
 
+See [Proposed helpdesk recovery policy](helpdesk-recovery-policy.md) for the documented lost-phone scenario, separate verification options, in-person identity checks, and social-engineering controls. These are proposed policy requirements, not implemented features.
+
 ## Existing accounts
 
 For accounts created under the earlier five-code prototype, retain the first remaining saved code as the permanent security code and retire the other hashes. Do not generate a new secret automatically. Accounts with no saved code complete first-time setup after email verification.
