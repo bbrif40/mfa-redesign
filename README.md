@@ -1,20 +1,36 @@
 # MFA redesign academic prototype
 
-A PHP demonstration of email number-matching verification with a sample institutional dashboard. The password field is illustrative and is not checked. Use dummy passwords only.
+A PHP demonstration of email number-matching verification and a permanent security code, with a fictional institutional dashboard. The password field is illustrative and is not checked. Use dummy passwords only.
 
 ## Setup
 
 1. Install PHP and copy `htdocs/config.example.php` to `htdocs/config.php`.
 2. Configure the site URL and email settings for your environment.
-3. Ensure `htdocs/data` is writable by PHP and is protected against web access. Its `.htaccess` provides this protection on Apache when overrides are enabled; other servers require equivalent rules.
+3. Ensure `htdocs/data` is writable by PHP and protected against web access. Its `.htaccess` supports Apache when overrides are enabled; other servers need equivalent rules.
 4. Serve `htdocs` as the document root.
 
-For local simulations, set `MFA_DEV=1`. The application saves the verification email to `htdocs/data/last_email.html` instead of sending it. Email links must point to the local site URL. View the saved HTML locally to select and confirm the matching number.
+For local simulation, set `MFA_DEV=1` and run `php -S 127.0.0.1:8080 -t htdocs router.php` from the project root. Match the configured site URL to your local port. The router protects runtime records and rejects missing files. **Open simulated email** on the verification screen lets you confirm the matching number without sending real email.
 
-## Repository layout
+## Permanent security code
 
-- `htdocs/`: current PHP prototype and bundled PHPMailer source.
-- `htdocs/config.example.php`: configuration template without credentials.
-- `htdocs/data/`: runtime verification and rate-limit records, excluded from Git.
+After first email verification, generate one security code, save or print it, and confirm **I saved my security code**. The same code works for future sign-ins and does not run out. Only its hash is stored with the account; plaintext is shown temporarily during setup.
 
-The local configuration, runtime records, and portable preview installation are excluded from version control.
+Every account must first complete email number matching before security-code sign-in is enabled, including prepared demo accounts. A saved code or preference does not bypass this first step. If the first verification email cannot be sent, sign-in stays on the login form with an error instead of proceeding to code entry.
+
+The dashboard offers **Use security code in your next login** after either sign-in method. Selecting it skips the email send on future sign-ins. Users can switch their preference back to email from the dashboard. The security-code page offers code entry, helpdesk assistance, and cancellation; it has no email-verification action.
+
+Code changes require **Request security code change through helpdesk**. This prototype shows a simulated receipt popup only: it does not send a real request, approve sign-in, or change the code. Self-service replacement is disabled even after email verification.
+
+Switching verification methods cancels the pending email link. Invalid codes retain the current escalating account lockout. Account data and request updates use file locks.
+
+Existing accounts from the five-code version keep their first remaining saved code as the permanent code. Other codes from that old set are retired.
+
+## Classroom simulation
+
+With demo mode enabled, sign in and open **Prepare a classroom demo account** from the dashboard to prepare a fictional account with one permanent security code. This page requires an active approved sign-in and is not accessible from the login page or anonymously. Preparation cannot regenerate an existing code. Save the displayed code and select **Start demo sign-in**. The demo account must complete number matching on its first sign-in; later sign-ins can use its permanent code.
+
+Configuration credentials, runtime records, and the portable `.local-preview` installation are excluded from Git. `htdocs/config.example.php` contains a safe configuration template; `htdocs/PHPMailer` contains the bundled mail library.
+
+## Verification
+
+Run `python tests/recovery_flow.py PATH_TO_PHP_EXECUTABLE`. Tests use isolated temporary data and cover setup, permanent reuse, concurrent logins, preferences, account protection, browser binding, helpdesk acknowledgements, blocked self-service changes, legacy migration, and demo-mode restrictions.

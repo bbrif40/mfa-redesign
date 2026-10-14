@@ -1,6 +1,20 @@
 <?php require 'lib.php';
-$r = request($_GET['t'] ?? '');
-if (!$r || !owns($r) || $r['status'] !== 'approved') go('index.php');
+$t = $_GET['t'] ?? ''; $r = request($t);
+if (!$r || !owns($r) || status($r) !== 'approved') go('index.php');
+$a = security_account($r['email']); $receipt = false;
+if (($r['method'] ?? 'email') === 'email' && !has_recovery_codes($r['email']) && empty($r['setup_done'])) go('setup.php?t=' . $t);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
+    if (in_array($_POST['action'] ?? '', ['prefer_security', 'prefer_email'], true)) {
+        $result = save_login_preference($t, $_POST['action'] === 'prefer_security' ? 'security_code' : 'email');
+        if ($result === 'locked') go('locked.php?e=' . urlencode($r['email']));
+        if ($result === 'invalid') go('index.php');
+        go('done.php?t=' . $t . '&preference=' . $result);
+    }
+    if (($_POST['action'] ?? '') === 'helpdesk') $receipt = true;
+}
+
+$_SESSION['signed_in_request'] = $t;
 
 // Example data for the prototype dashboard (all fictional).
 $name = strtoupper(str_replace(['.', '_'], ' ', explode('@', $r['email'])[0]));
@@ -50,7 +64,24 @@ $ini = fn($n) => implode('', array_map(fn($w) => $w[0], array_slice(array_values
 <div class="main">
   <header class="hello">
     <h1>Hello, <?= h($name) ?>!</h1>
-    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with number matching · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
+    <p class="verified"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4 10-10"/></svg>Signed in with <?= ($r['method'] ?? 'email') === 'recovery' ? 'a security code' : 'number matching' ?> · <?= h($r['device']) ?> · <?= h($r['time']) ?></p>
+    <p>Your security code is permanent and reusable. Changes require a helpdesk request.</p>
+    <?php if (DEV_MODE): ?><p><a href="demo.php">Prepare a classroom demo account</a></p><?php endif; ?>
+    <form method="post"><?= csrf_field() ?>
+      <button type="submit" name="action" value="prefer_security" <?= has_recovery_codes($r['email']) ? '' : 'disabled' ?>>Use security code in your next login</button>
+      <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
+      <button type="submit" name="action" value="prefer_email">Use email verification in your next login</button>
+      <?php endif; ?>
+    </form>
+    <?php if (($a['preferred_verification'] ?? 'email') === 'security_code'): ?>
+    <p role="status">Security code selected for your next login. Use the same code each time. Email verification remains available.</p>
+    <?php elseif (($_GET['preference'] ?? '') === 'saved'): ?><p role="status">Email verification selected for your next login.</p><?php endif; ?>
+    <?php if (($_GET['preference'] ?? '') === 'no_codes'): ?><p role="alert">Complete security code setup before selecting it for your next login.</p><?php endif; ?>
+    <form method="post"><?= csrf_field() ?><button type="submit" name="action" value="helpdesk">Request security code change through helpdesk</button></form>
+    <?php if ($receipt): ?>
+    <p role="status">Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.</p>
+    <script>alert('Simulation: the helpdesk has received your security code change request. Your code remains unchanged. No real request was sent.');</script>
+    <?php endif; ?>
   </header>
   <div class="tabs" role="tablist"><span class="tab on">Dashboard</span><span class="tab">Courses</span></div>
 

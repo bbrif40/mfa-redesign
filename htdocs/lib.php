@@ -2,14 +2,28 @@
 require __DIR__ . '/config.php';
 date_default_timezone_set('Asia/Manila');
 define('DATA', __DIR__ . '/data/');
+session_set_cookie_params(['httponly' => true, 'samesite' => 'Lax', 'secure' => https()]);
+session_start();
+require __DIR__ . '/recovery-lib.php';
 
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function go($url) { header("Location: $url"); exit; }
 
 // ---- storage: one JSON file per login request / per account ----
 // ponytail: flat JSON files, fine for a class demo; move to MySQL if many users hit it at once
-function load($name) { $f = DATA . $name . '.json'; return is_file($f) ? json_decode(file_get_contents($f), true) : null; }
-function save($name, $d) { file_put_contents(DATA . $name . '.json', json_encode($d), LOCK_EX); }
+function load($name) {
+    $f = DATA . $name . '.json';
+    if (!is_file($f)) return null;
+    $handle = fopen($f, 'r');
+    if (!$handle || !flock($handle, LOCK_SH)) throw new RuntimeException('Storage unavailable');
+    try { return json_decode(stream_get_contents($handle), true, 512, JSON_THROW_ON_ERROR); }
+    finally { flock($handle, LOCK_UN); fclose($handle); }
+}
+function save($name, $d) {
+    if (file_put_contents(DATA . $name . '.json', json_encode($d, JSON_THROW_ON_ERROR), LOCK_EX) === false) {
+        throw new RuntimeException('Storage unavailable');
+    }
+}
 function acct($email) { return 'acct_' . sha1(strtolower(trim($email))); }
 
 function request($t) {
@@ -22,8 +36,11 @@ function locked_until($email) {
     $a = load(acct($email));
     return ($a['locked_until'] ?? 0) > time() ? $a['locked_until'] : 0;
 }
-function strike($email, $force_lock = false) { // record one attempt; returns true if the account is now locked
-    $a = load(acct($email)) ?? ['hits' => [], 'locked_until' => 0];
+function strike($email, $force_lock = false) {
+    return account_lock($email, fn() => record_strike($email, $force_lock));
+}
+function record_strike($email, $force_lock = false) { // caller holds the account lock
+    $a = (load(acct($email)) ?? []) + ['hits' => [], 'locked_until' => 0];
     if (($a['locked_until'] ?? 0) < time() - 86400) $a['locks'] = 0; // a quiet day resets the escalation
     $a['hits'] = array_values(array_filter($a['hits'], fn($t) => $t > time() - WINDOW_SECONDS));
     $a['hits'][] = time();
@@ -35,7 +52,13 @@ function strike($email, $force_lock = false) { // record one attempt; returns tr
     save(acct($email), $a);
     return $a['locked_until'] > time();
 }
-function clear_strikes($email) { save(acct($email), ['hits' => [], 'locked_until' => 0]); }
+function clear_strikes($email) {
+    account_lock($email, function () use ($email) {
+        $a = load(acct($email)) ?? [];
+        $a['hits'] = []; $a['locked_until'] = 0; $a['locks'] = 0;
+        save(acct($email), $a);
+    });
+}
 
 // ---- per-network limit: stops one attacker from using the site to email many different people ----
 function ip_key() { return 'ip_' . sha1($_SERVER['REMOTE_ADDR'] ?? ''); }
@@ -73,28 +96,33 @@ function location($ip) {
 function mask($email) { [$u, $d] = explode('@', $email, 2); return substr($u, 0, 1) . '***@' . $d; }
 
 // ---- start a verification: returns token, or 'locked', 'iplimit', or 'mailfail' ----
-function start_request($email) {
+function start_request($email, $simulate_failure = false) {
+    return account_lock($email, fn() => create_email_request($email, $simulate_failure));
+}
+function create_email_request($email, $simulate_failure) {
     if (locked_until($email)) return 'locked';
     if (count(ip_hits()) >= 10) return 'iplimit'; // max 10 sign-in emails per hour from one network
     $site = strtolower((string)parse_url(SITE_URL, PHP_URL_HOST));
     $here = strtolower(preg_replace('/:\d+$/', '', $_SERVER['HTTP_HOST'] ?? ''));
     if (!DEV_MODE && $site !== $here) { // wrong SITE_URL = email buttons that lead nowhere
         $GLOBALS['mail_error'] = "SITE_URL in config.php is " . SITE_URL . " but this site is at $here. Set SITE_URL to " . (https() ? 'https' : 'http') . "://$here";
-        return 'mailfail';
+        return failed_email_request($email);
     }
     $choices = [];
     while (count($choices) < 9) $choices[sprintf('%02d', random_int(1, 99))] = 1;
     $choices = array_keys($choices);
     $ip = $_SERVER['REMOTE_ADDR'] ?? '';
     $r = [
-        'email' => $email, 'status' => 'pending', 'created' => time(),
+        'email' => $email, 'status' => 'pending', 'created' => time(), 'method' => 'email',
         'num' => (string)$choices[random_int(0, 8)], 'choices' => array_map('strval', $choices),
         'key' => bin2hex(random_bytes(16)), // secret only the email has: seeing the screen isn't enough to approve
         'bind' => bin2hex(random_bytes(16)), // matches a cookie in the browser that started the login
         'device' => device(), 'location' => location($ip), 'time' => date('g:i A'),
     ];
     $t = bin2hex(random_bytes(16));
-    if (!send_mail($r, $t)) return 'mailfail'; // a failed send doesn't count toward the lockout
+    if ((DEV_MODE && $simulate_failure) || !send_mail($r, $t)) {
+        return failed_email_request($email); // failed sends do not count toward lockout
+    }
     save('req_' . $t, $r);
     set_bind($r['bind']);
     save(ip_key(), array_merge(ip_hits(), [time()]));
@@ -129,6 +157,7 @@ function send_mail($r, $t) {
 
 // ---- page shell (matches the Canva prototype) ----
 function top($title) {
+    header('Cache-Control: no-store');
     header('X-Frame-Options: DENY'); // no framing the confirm page (clickjacking)
     header('Referrer-Policy: no-referrer'); // email links carry a secret; never leak it to other sites
     header('X-Content-Type-Options: nosniff'); ?>
